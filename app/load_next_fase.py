@@ -3,9 +3,10 @@ import requests
 from typing import Dict, Any
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import text
+from sqlalchemy.orm import sessionmaker
 
 from app.models.enfrentamientos import Enfrentamiento
-from app.core.database import get_session
+from app.core.database import engine, get_session
 from app.core.config import config
 from app import queries
 
@@ -39,6 +40,19 @@ def get_group_clasifs():
     }
 
 
+def get_insert_object(local_id: int, vis_id: int, fase_id: int) -> Enfrentamiento:
+    return Enfrentamiento(
+        local_id=local_id,
+        visitante_id=vis_id,
+        fase_id=fase_id,
+        goles_local=None,
+        goles_visitante=None,
+        fecha=None,
+        penales_local=None,
+        penales_visitante=None
+    )
+
+
 def load_first_fase_from_groups():
     teams = get_group_clasifs()
     group_keys = sorted(set([letter[0] for letter in list(teams.keys())]))
@@ -62,13 +76,14 @@ def load_first_fase_from_groups():
     comb_vuelta = [(_tuple[-1], _tuple[0]) for _tuple in comb_ida]
     combinations = comb_ida + comb_vuelta
 
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+
     for match in combinations:
-        sql = f"""
-            INSERT INTO enfrentamientos (local_id, visitante_id, fase_id)
-            VALUES ({match[0]}, {match[1]}, 1)
-        """
-        # TODO - add a execute query!
-        logger.info(sql)
+        insert = get_insert_object(match[0], match[1], 1)
+        session.add(insert)
+    session.commit()
+    session.close()
 
 
 def load_next_fase(last_completed_fase: int):
@@ -89,13 +104,14 @@ def load_next_fase(last_completed_fase: int):
 
     combinations = comb_ida + comb_vuelta
 
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+
     for match in combinations:
-        sql = f"""
-            INSERT INTO enfrentamientos (local_id, visitante_id, fase_id)
-            VALUES ({match[0]}, {match[1]}, {last_completed_fase + 1})
-        """
-        # TODO - add a execute query!
-        logger.info(sql)
+        insert = get_insert_object(match[0], match[1], last_completed_fase + 1)
+        session.add(insert)
+    session.commit()
+    session.close()
 
 
 def verify_load_next_fase() -> bool:
