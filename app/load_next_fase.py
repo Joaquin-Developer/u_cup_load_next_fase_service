@@ -140,6 +140,6 @@ def main():
             f"- Ult. fase completa Id= {last_completed_fase_id}",
             " - se cargará prox fase."
         )
-        load_next_fase(last_completed_fase)
+        load_next_fase(last_completed_fase_id)
 
     return {"message": "ok"}
